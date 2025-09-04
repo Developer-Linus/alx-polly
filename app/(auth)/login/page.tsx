@@ -7,19 +7,35 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { login } from '@/app/lib/actions/auth-actions';
+import { loginSchema } from '@/app/lib/validations/schemas';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setFieldErrors({});
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
+
+    // Client-side validation
+    const validation = loginSchema.safeParse({ email, password });
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.errors.forEach((error) => {
+        const path = error.path.join('.');
+        errors[path] = error.message;
+      });
+      setFieldErrors(errors);
+      setLoading(false);
+      return;
+    }
 
     const result = await login({ email, password });
 
@@ -49,7 +65,9 @@ export default function LoginPage() {
                 placeholder="your@email.com" 
                 required
                 autoComplete="email"
+                className={fieldErrors.email ? 'border-red-500' : ''}
               />
+              {fieldErrors.email && <p className="text-red-500 text-sm">{fieldErrors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -59,7 +77,9 @@ export default function LoginPage() {
                 type="password" 
                 required
                 autoComplete="current-password"
+                className={fieldErrors.password ? 'border-red-500' : ''}
               />
+              {fieldErrors.password && <p className="text-red-500 text-sm">{fieldErrors.password}</p>}
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>

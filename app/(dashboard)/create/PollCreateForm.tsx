@@ -5,11 +5,13 @@ import { createPoll } from "@/app/lib/actions/poll-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createPollSchema, validateFormData } from "@/app/lib/validations/schemas";
 
 export default function PollCreateForm() {
   const [options, setOptions] = useState(["", ""]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleOptionChange = (idx: number, value: string) => {
     setOptions((opts) => opts.map((opt, i) => (i === idx ? value : opt)));
@@ -27,6 +29,15 @@ export default function PollCreateForm() {
       action={async (formData) => {
         setError(null);
         setSuccess(false);
+        setFieldErrors({});
+        
+        // Client-side validation
+        const validation = validateFormData(createPollSchema, formData);
+        if (!validation.success) {
+          setFieldErrors(validation.errors || {});
+          return;
+        }
+        
         const res = await createPoll(formData);
         if (res?.error) {
           setError(res.error);
@@ -41,7 +52,13 @@ export default function PollCreateForm() {
     >
       <div>
         <Label htmlFor="question">Poll Question</Label>
-        <Input name="question" id="question" required />
+        <Input 
+          name="question" 
+          id="question" 
+          required 
+          className={fieldErrors.question ? 'border-red-500' : ''}
+        />
+        {fieldErrors.question && <p className="text-red-500 text-sm">{fieldErrors.question}</p>}
       </div>
       <div>
         <Label>Options</Label>
@@ -52,6 +69,7 @@ export default function PollCreateForm() {
               value={opt}
               onChange={(e) => handleOptionChange(idx, e.target.value)}
               required
+              className={fieldErrors.options ? 'border-red-500' : ''}
             />
             {options.length > 2 && (
               <Button type="button" variant="destructive" onClick={() => removeOption(idx)}>
@@ -63,10 +81,11 @@ export default function PollCreateForm() {
         <Button type="button" onClick={addOption} variant="secondary">
           Add Option
         </Button>
+        {fieldErrors.options && <p className="text-red-500 text-sm">{fieldErrors.options}</p>}
       </div>
       {error && <div className="text-red-500">{error}</div>}
       {success && <div className="text-green-600">Poll created! Redirecting...</div>}
       <Button type="submit">Create Poll</Button>
     </form>
   );
-} 
+}

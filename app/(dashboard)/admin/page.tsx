@@ -1,6 +1,3 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,8 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { deletePoll } from "@/app/lib/actions/poll-actions";
-import { createClient } from "@/lib/supabase/client";
+import { getAllPolls } from "@/app/lib/actions/poll-actions";
+import { requireAdmin } from "@/app/lib/actions/auth-actions";
+import { redirect } from "next/navigation";
+import { DeletePollButton } from "./DeletePollButton";
 
 interface Poll {
   id: string;
@@ -20,44 +19,29 @@ interface Poll {
   options: string[];
 }
 
-export default function AdminPage() {
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchAllPolls();
-  }, []);
-
-  const fetchAllPolls = async () => {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("polls")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setPolls(data);
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async (pollId: string) => {
-    setDeleteLoading(pollId);
-    const result = await deletePoll(pollId);
-
-    if (!result.error) {
-      setPolls(polls.filter((poll) => poll.id !== pollId));
-    }
-
-    setDeleteLoading(null);
-  };
-
-  if (loading) {
-    return <div className="p-6">Loading all polls...</div>;
+export default async function AdminPage() {
+  // Server-side admin authorization check
+  try {
+    await requireAdmin();
+  } catch (error) {
+    redirect('/login?error=admin_required');
   }
 
+  // Fetch all polls with admin authorization
+  const { data: polls, error } = await getAllPolls();
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-red-600">Access Denied</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
@@ -68,7 +52,7 @@ export default function AdminPage() {
       </div>
 
       <div className="grid gap-4">
-        {polls.map((poll) => (
+        {polls?.map((poll) => (
           <Card key={poll.id} className="border-l-4 border-l-blue-500">
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -95,14 +79,7 @@ export default function AdminPage() {
                     </div>
                   </CardDescription>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(poll.id)}
-                  disabled={deleteLoading === poll.id}
-                >
-                  {deleteLoading === poll.id ? "Deleting..." : "Delete"}
-                </Button>
+                <DeletePollButton pollId={poll.id} />
               </div>
             </CardHeader>
             <CardContent>
@@ -121,7 +98,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {polls.length === 0 && (
+      {(!polls || polls.length === 0) && (
         <div className="text-center py-8 text-gray-500">
           No polls found in the system.
         </div>
