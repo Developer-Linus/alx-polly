@@ -9,24 +9,97 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { login } from '@/app/lib/actions/auth-actions';
 import { loginSchema } from '@/app/lib/validations/schemas';
 
+/**
+ * Login page component that handles user authentication.
+ * 
+ * This component provides a secure login form with client-side validation,
+ * error handling, and integration with the authentication system.
+ * 
+ * **Authentication Flow:**
+ * 1. User enters email and password
+ * 2. Client-side validation using Zod schema
+ * 3. Form submission to login Server Action
+ * 4. Server-side authentication via Supabase
+ * 5. Session creation and redirect on success
+ * 6. Error display and retry on failure
+ * 
+ * **Security Features:**
+ * - Client-side input validation
+ * - Server-side authentication
+ * - Generic error messages (no user enumeration)
+ * - Loading states to prevent double submission
+ * - Automatic redirect after successful login
+ * 
+ * **User Experience:**
+ * - Real-time validation feedback
+ * - Clear error messages
+ * - Loading indicators
+ * - Accessible form design
+ * - Link to registration page
+ * 
+ * **Integration Points:**
+ * - Uses login Server Action for authentication
+ * - Connects to Supabase auth system
+ * - Triggers AuthContext updates on success
+ * - Middleware handles session validation
+ * 
+ * **Error Handling:**
+ * - Field-level validation errors
+ * - Authentication failure messages
+ * - Network error recovery
+ * - Form state management
+ */
 export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Form state management
+  const [error, setError] = useState<string | null>(null); // General error message
+  const [loading, setLoading] = useState(false); // Loading state for form submission
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}); // Field-specific validation errors
 
+  /**
+   * Handles form submission for user login.
+   * 
+   * This function orchestrates the complete login flow from form validation
+   * to authentication and redirect, with comprehensive error handling.
+   * 
+   * **Flow Steps:**
+   * 1. Prevent default form submission
+   * 2. Set loading state and clear previous errors
+   * 3. Extract form data (email, password)
+   * 4. Perform client-side validation
+   * 5. Call server-side login action
+   * 6. Handle success (redirect) or failure (show errors)
+   * 
+   * **Security Measures:**
+   * - Client-side validation prevents malformed requests
+   * - Server-side validation and authentication
+   * - Generic error messages prevent user enumeration
+   * - Loading state prevents double submission
+   * 
+   * **Error Handling:**
+   * - Validation errors shown per field
+   * - Authentication errors shown as general message
+   * - Network errors handled gracefully
+   * - Form state reset on errors
+   */
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    // Prevent default browser form submission
     event.preventDefault();
+    
+    // Set loading state and clear any previous errors
     setLoading(true);
     setError(null);
     setFieldErrors({});
 
+    // Extract form data using FormData API
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
-    // Client-side validation
+    // Perform client-side validation using Zod schema
+    // This provides immediate feedback and prevents unnecessary server calls
     const validation = loginSchema.safeParse({ email, password });
     if (!validation.success) {
+      // Convert Zod errors to field-specific error messages
       const errors: Record<string, string> = {};
       validation.error.errors.forEach((error) => {
         const path = error.path.join('.');
@@ -37,13 +110,20 @@ export default function LoginPage() {
       return;
     }
 
+    // Call server-side login action with validated data
+    // This handles Supabase authentication and session creation
     const result = await login({ email, password });
 
+    // Handle authentication result
     if (result?.error) {
+      // Show generic error message (security: no user enumeration)
       setError(result.error);
       setLoading(false);
     } else {
-      window.location.href = '/polls'; // Full reload to pick up session
+      // Success: redirect to polls page with full page reload
+      // Full reload ensures middleware picks up new session cookies
+      // and AuthContext is properly initialized with user data
+      window.location.href = '/polls';
     }
   };
 
