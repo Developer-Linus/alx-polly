@@ -19,15 +19,22 @@ interface Poll {
   options: string[];
 }
 
+/**
+ * Admin dashboard for system-wide poll management.
+ * 
+ * Provides administrators with oversight capabilities to monitor and manage
+ * all polls across the platform, ensuring content moderation and system health.
+ * Only accessible to users with admin privileges to maintain security boundaries.
+ */
 export default async function AdminPage() {
-  // Server-side admin authorization check
+  // Enforce admin-only access to prevent unauthorized system-wide data exposure
   try {
     await requireAdmin();
   } catch (error) {
     redirect('/login?error=admin_required');
   }
 
-  // Fetch all polls with admin authorization
+  // Retrieve comprehensive poll data for administrative oversight
   const { data: polls, error } = await getAllPolls();
 
   if (error) {
@@ -86,7 +93,7 @@ export default async function AdminPage() {
               <div className="space-y-2">
                 <h4 className="font-medium">Options:</h4>
                 <ul className="list-disc list-inside space-y-1">
-                  {poll.options.map((option, index) => (
+                  {poll.options.map((option: string, index: number) => (
                     <li key={index} className="text-gray-700">
                       {option}
                     </li>
